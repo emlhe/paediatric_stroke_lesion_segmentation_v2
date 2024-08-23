@@ -1,0 +1,19 @@
+{ 
+  "rootdir_train_img": "/home/emma/data/DATABASES/ATLAS/ATLAS_R2.0/ATLAS_2/Training",
+  "rootdir_train_labels": "/home/emma/data/DATABASES/ATLAS/ATLAS_R2.0/ATLAS_2/Training",
+  "rootdir_test-cap": "/home/emma/data/IRM-CAP/derivatives/segmentations_manuelles/training_data",
+  "rootdir_test_labels-cap": "/home/emma/data/IRM-CAP/derivatives/segmentations_manuelles/training_data",
+  "channel_names": {
+    "0": "T1"
+  }, 
+  "labels": {
+      "background":0,
+      "stroke":1
+  }, 
+  "file_ending": ".nii.gz",
+  "suffixe_img-train": "T1w",
+  "suffixe_labels-train": "lesion_mask",
+  "suffixe_img-test": "T1w",
+  "suffixe_labels-test": "mask",
+  "subset": false
+ }

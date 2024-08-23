@@ -1,0 +1,15 @@
+{ 
+ "channel_names": {
+   "0": "T1"
+ }, 
+ "labels": {
+    "background":0,
+    "stroke":1
+ }, 
+ "file_ending": ".nii.gz",
+ "suffixe_img-train": "T1w",
+ "suffixe_labels-train": "lesion_mask",
+ "suffixe_img-test": "T1w",
+ "suffixe_labels-test": "mask",
+ "subset": true
+ }
