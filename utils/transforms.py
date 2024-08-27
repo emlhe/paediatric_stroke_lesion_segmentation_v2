@@ -4,10 +4,10 @@ def preprocess(num_classes):
     return tio.Compose([
                 tio.OneHot(num_classes=num_classes),
                 tio.ZNormalization(masking_method=tio.ZNormalization.mean),
-                tio.ToCanonical(), # Reorder the data to be closest to canonical (RAS+) orientation.
-                tio.Resample('t1'), # Make sure all seg have same affine as t1
+                tio.ToCanonical(), # "Reorder the data to be closest to canonical (RAS+) orientation."
+                tio.Resample('t1'), # Make sure all label maps have same affine as t1
                 tio.Resample(1),
-                tio.EnsureShapeMultiple((32,32,32), method='crop'),# for the U-Net : doit être un multiple de 2**nombre de couches
+                tio.EnsureShapeMultiple((32,32,32), method='crop'), # for the U-Net : doit être un multiple de 2**nombre de couches
                 ])
         
 def augment():

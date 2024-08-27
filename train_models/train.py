@@ -23,14 +23,9 @@ from tqdm.auto import tqdm
 
 import matplotlib.pyplot as plt 
 
-import sys
-sys.path.append("/home/emma/Projets/stroke_lesion_segmentation_v2/")
-sys.path.append("/home/emma/Projets/stroke_lesion_segmentation_v2/config_files/")
-sys.path.append("/home/emma/Projets/stroke_lesion_segmentation_v2/utils/")
-from transforms import augment, preprocess
-from get_subjects import get_subjects
-from load_model import load
-from subject_dataloader import SubjectDataLoader
+from utils.transforms import augment, preprocess
+from utils.get_subjects import get_subjects
+from utils.load_model import load
 
 #################
 #   Parameters  #
@@ -67,7 +62,7 @@ class SubjectsDataset(tio.SubjectsDataset):
         return self._subjects
 
 
-config_files = ["config_unet_atlas"]
+config_files = ["config_resunet_atlas"]
 data_infos_files = ["dataset_subsample"]
 
 for i in range(len(config_files)):

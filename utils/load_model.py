@@ -1,5 +1,5 @@
 import monai 
-from monai.networks.nets import UNet
+from monai.networks.nets import UNet, ResNetFeatures, FlexibleUNet, ResNetEncoder
 import torch 
 from monai.networks.layers.factories import Norm
 import pytorch_lightning as pl
@@ -7,13 +7,12 @@ import torchio as tio
 import numpy as np
 
 import sys
-sys.path.append("/home/emma/Projets/stroke_lesion_segmentation_v2/Model/")
-from ResUNet import Res_UNet
-from Model import Model
+from Model.ResUNet import Res_UNet
+from Model.Model import Model
 
 def load(weights_path, model, lr, dropout, loss_type, n_class, channels, epochs):
     if model == "unet":
-        net = monai.networks.nets.UNet(
+        net = UNet(
             spatial_dims=3,
             in_channels=1,
             out_channels=n_class,
@@ -23,8 +22,19 @@ def load(weights_path, model, lr, dropout, loss_type, n_class, channels, epochs)
             dropout=dropout
         )
         optim=torch.optim.AdamW
+
     elif model == "resunet":
-        net = Res_UNet(num_classes=n_class, pretrained = True)
+        # net = Res_UNet(num_classes=n_class, pretrained = True)
+        # features = ResNetFeatures("resnet10", pretrained=True, spatial_dims=3, in_channels=1)
+        net = FlexibleUNet(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=2,
+            backbone="resnet10", 
+            pretrained=True, # "MedicalNet weights are available for residual networks if spatial_dims=3 and in_channels=1"
+            norm = Norm.BATCH 
+            )
+        
         optim=torch.optim.SGD
 
     if loss_type == "Dice":
