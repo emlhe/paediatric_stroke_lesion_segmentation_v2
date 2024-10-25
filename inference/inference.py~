@@ -34,8 +34,8 @@ weights_ids = [str(sys.argv[1])]
 for i in range(len(weights_ids)):
     weights_id = weights_ids[i]
     weigts_dir = Path("./weights")
-    data_infos_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'/dataset*.json'))[0])
-    config_file_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'/config*.json'))[0])
+    data_infos_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'*/dataset*.json'))[0])
+    config_file_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'*/config*.json'))[0])
     config_file = config_file_path.split("/")[-1].split(".json")[0]
     data_info_file = data_infos_path.split("/")[-1].split(".json")[0]
     print(f"######## Inference with config {config_file_path} and data {data_infos_path} for weights {weights_id}")
@@ -65,14 +65,10 @@ for i in range(len(weights_ids)):
         rootdir_train_labels = data_info["rootdir_train_labels"]
         rootdir_test_img = data_info["rootdir_test-cap"]
         rootdir_test_labels = data_info["rootdir_test_labels-cap"]
-        rootdir_test_brain_mask = data_info["rootdir_test_brain_mask"]
-        rootdir_train_brain_mask = data_info["rootdir_train_brain_mask"]
         suffixe_img_train = data_info["suffixe_img-train"]
         suffixe_labels_train = data_info["suffixe_labels-train"]
         suffixe_img_test = data_info["suffixe_img-test"]
         suffixe_labels_test = data_info["suffixe_labels-test"]
-        suffixe_brain_mask_train = data_info["suffixe_brain_mask-train"]
-        suffixe_brain_mask_test = data_info["suffixe_brain_mask-test"]
         num_classes = len(data_info["labels"])
         file_ending = data_info["file_ending"]
         subsample = data_info["subset"]
@@ -85,8 +81,8 @@ for i in range(len(weights_ids)):
 
     current_dateTime = datetime.now()
     id_run = config_file + sample + "_weights-" + weights_id + "_" + str(current_dateTime.day) + "-" + str(current_dateTime.month) + "-" + str(current_dateTime.year) + "-" + str(current_dateTime.hour) + str(current_dateTime.minute) + str(current_dateTime.second) 
-    model_weights_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'.pth'))[0])
-    print(f"Inference with weights : {model_weights_path}")
+    model_weights_path = str(sorted(weigts_dir.glob('**/*'+weights_id+'*.pth'))[0])
+    print(model_weights_path)
 
 
     ##############
@@ -113,11 +109,7 @@ for i in range(len(weights_ids)):
     print(f"Labels in : {labels_dir}")
     img_test_dir=Path(rootdir_test_img)
     print(f"Test images in : {img_test_dir}")
-    brain_masks_train_dir=Path(rootdir_train_brain_mask)
-    print(f"Train brain mask in : {brain_masks_train_dir}")
     brain_masks_test_dir = Path("/home/emma/data/IRM-CAP/derivatives/Brain_extraction/FS-SynthStrip/CAP-stroke")
-    print(f"Test brain mask in : {brain_masks_test_dir}")
-    
 
 
     ####################
@@ -127,16 +119,16 @@ for i in range(len(weights_ids)):
 
     train_image_paths = sorted(img_dir.glob('**/*'+suffixe_img_train+file_ending))
     train_label_paths = sorted(labels_dir.glob('**/*'+suffixe_labels_train+file_ending))
-    train_brain_mask_paths = sorted(brain_masks_train_dir.glob('**/*'+suffixe_brain_mask_train+file_ending))
-
     test_img_paths = sorted(img_test_dir.glob('**/*'+suffixe_img_test+file_ending))
     test_label_paths = sorted(img_test_dir.glob('**/*'+suffixe_labels_test+file_ending))
-    test_brain_mask_paths = sorted(brain_masks_test_dir.glob('**/*'+suffixe_brain_mask_test+file_ending))
+    test_brain_mask_paths = sorted(brain_masks_test_dir.glob('**/*brain-mask.nii.gz'))
 
+    print(len(test_img_paths))
+    print(len(test_label_paths))
     assert len(train_image_paths) == len(train_label_paths)
     assert len(test_img_paths) == len(test_label_paths)
-
-    train_subjects = get_subjects(train_image_paths, train_label_paths, subsample, brain_mask_paths = train_brain_mask_paths)
+    print(len(test_brain_mask_paths))
+    train_subjects = get_subjects(train_image_paths, train_label_paths, subsample)
 
     test_subjects = get_subjects(test_img_paths, test_label_paths, subsample=False, brain_mask_paths = test_brain_mask_paths)
 
@@ -147,9 +139,9 @@ for i in range(len(weights_ids)):
     ##########################
     print("\n# DATA TRANFORMATION\n")
 
-    transform_train = tio.Compose([preprocess(brain_mask='brain_mask'), augment()])
-    transform_val = tio.Compose([preprocess(brain_mask='brain_mask')])
-    transform_test = tio.Compose([preprocess(brain_mask='brain_mask')])
+    transform_train = tio.Compose([preprocess(), augment()])
+    transform_val = tio.Compose([preprocess()])
+    transform_test = tio.Compose([tio.CropOrPad((180, 180, 180), mask_name='brain_mask'), preprocess(brain_mask='brain_mask')])
 
     #######################
     #   TRAIN VAL SPLIT   #
@@ -164,9 +156,9 @@ for i in range(len(weights_ids)):
     generator = torch.Generator().manual_seed(seed)
     train_subjects, val_subjects = random_split(train_subjects, splits, generator=generator)
 
-    train_subjects_dataset = tio.SubjectsDataset(train_subjects)#, transform=transform_train)
-    val_subjects_dataset = tio.SubjectsDataset(val_subjects)#, transform=transform_val)
-    test_subjects_dataset = tio.SubjectsDataset(test_subjects)#, transform=transform_test)
+    train_subjects_dataset = tio.SubjectsDataset(train_subjects, transform=transform_train)
+    val_subjects_dataset = tio.SubjectsDataset(val_subjects, transform=transform_val)
+    test_subjects_dataset = tio.SubjectsDataset(test_subjects, transform=transform_test)
 
     for subject in test_subjects_dataset._subjects:
         print("####")
@@ -199,22 +191,8 @@ for i in range(len(weights_ids)):
         print(len(img_set))
     
         for subject in img_set.dry_iter(): # Suggested in https://github.com/fepegar/torchio/issues/256
+            subject = transform(subject)
             print(subject)
-            new_sub = transform(subject)
-            shape = new_sub['t1'][tio.DATA].shape
-            print(shape)
-            new_shape = []
-            for s in shape[1:]:
-                if s<128:
-                    new_shape.append(128)
-                else:
-                    new_shape.append(s) 
-            print(new_shape)
-            transform_test = tio.Compose([preprocess(brain_mask='brain_mask', crop=new_shape)])
-            print(subject)
-            subject = transform_test(subject)
-            print(subject['t1'][tio.DATA].shape)
-            
             if patch: 
                 grid_sampler = tio.inference.GridSampler(
                     subject,
@@ -270,12 +248,13 @@ for i in range(len(weights_ids)):
                 hd = get_hd.aggregate().cpu().numpy()[0]
                 print(f"HD : {hd[0]}")
                 get_hd.reset()
+                print(df)
+                print(df.columns)
                 new_data = [[subject['subject']] + [dice[0]] + [hd[0]]]
                 print(pd.DataFrame(data=new_data, columns = df.columns))
                 df = pd.concat([df, pd.DataFrame(data=new_data, columns = df.columns)], ignore_index=True)
                
             pred = tio.LabelMap(tensor=outputs_one_hot.squeeze(axis=0), affine=subject.t1.affine, type=tio.LABEL) # tensor must be 4D
-            # Nécessaire de Crop à la taille du cerveau car on a fait un pad pour ensure shape multiple ce qui a ajouté une bordure dans laquelle le modèle segmente
             subject.add_image(pred, "prediction")
             new_subject = subject.apply_inverse_transform()
 
@@ -299,21 +278,15 @@ for i in range(len(weights_ids)):
 
     df_labels = pd.DataFrame(columns=["Subjects"] + ["DICE"] + ["HD 95"])
 
-    # print("# Test")
-    # df_labels_test = pd.DataFrame(columns=["Subjects", "DICE", "HD 95"])
-    # df_test = inference(test_subjects_dataset, metric = True, df = df_labels_test, data="test", patch = ctx["patch"], transform = transform_test)
-    # df_test.to_csv("./out-predictions/"+id_run+"/scores_test.csv", index=False)
-    # print(df_test)
-    # print(f"\t# Mean DICE = {df_test.loc[:, 'DICE'].mean()} +- {df_test.loc[:, 'DICE'].std()}")
-    # print(f"\t# Mean HD95 = {df_test.loc[:, 'HD 95'].mean()} +- {df_test.loc[:, 'HD 95'].std()}")
+    print("# Test")
+    df_labels_test = pd.DataFrame(columns=["Subjects", "DICE", "HD 95"])
+    df_test = inference(test_subjects_dataset, metric = True, df = df_labels_test, data="test", patch = ctx["patch"], transform = transform_test)
+    df_test.to_csv("./out-predictions/"+id_run+"/scores_test.csv", index=False)
 
-    # print("# Validation")
+    print("# Validation")
     df_val = inference(val_subjects_dataset, metric = True, df = df_labels, data="val", patch = ctx["patch"], transform = transform_val)
     df_val.to_csv("./out-predictions/"+id_run+"/scores_val.csv", index=False)
-    print(df_val)
-    print(f"\t# Mean DICE = {df_val.loc[:, 'DICE'].mean()} +- {df_val.loc[:, 'DICE'].std()}")
-    print(f"\t# Mean HD95 = {df_val.loc[:, 'HD 95'].mean()} +- {df_val.loc[:, 'HD 95'].std()}")
-    
+
     # print("# Training")
     # df_train = inference(train_subjects_dataset, metric = True, df = df_labels, data="train", patch = ctx["patch"], transform = transform_train)
     # df_train.to_csv("./out-predictions/"+id_run+"/scores_train.csv", index=False)

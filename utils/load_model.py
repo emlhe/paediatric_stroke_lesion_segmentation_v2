@@ -29,38 +29,24 @@ def load(weights_path, model, lr, dropout, loss_type, n_class, channels, epochs)
         net = FlexibleUNet(
             spatial_dims=3,
             in_channels=1,
-            out_channels=2,
-            backbone="resnet10", 
+            out_channels=n_class,
+            backbone=channels, 
             pretrained=True, # "MedicalNet weights are available for residual networks if spatial_dims=3 and in_channels=1"
-            norm = Norm.BATCH 
+            dropout=dropout,
+            norm=Norm.INSTANCE,
+            upsample='deconv',
+            decoder_bias=True
             )
         
-        optim=torch.optim.SGD
+        # optim=torch.optim.SGD
+        optim=torch.optim.AdamW
 
     if loss_type == "Dice":
-        crit = monai.losses.DiceLoss(include_background=True,
-        to_onehot_y=False,
-        sigmoid=False,
-        softmax=True,
-        other_act=None,
-        squared_pred=False,
-        jaccard=False,
-        reduction="mean",
-        smooth_nr=1e-05,
-        smooth_dr=1e-05,
-        batch=True)# monai.losses.GeneralizedWassersteinDiceLoss
+        crit = monai.losses.DiceLoss(include_background=True, softmax=True)
+    if loss_type == "DiceFocalLoss":
+        crit = monai.losses.DiceFocalLoss(include_background=False, softmax=True)
     elif loss_type == "DiceCE":
-        crit = monai.losses.DiceCELoss(include_background=True,
-        to_onehot_y=False,
-        sigmoid=False,
-        softmax=True,
-        other_act=None,
-        squared_pred=False,
-        jaccard=False,
-        reduction="mean",
-        smooth_nr=1e-05,
-        smooth_dr=1e-05,
-        batch=True)# monai.losses.GeneralizedWassersteinDiceLoss
+        crit = monai.losses.DiceCELoss(include_background=True, softmax=True)# monai.losses.GeneralizedWassersteinDiceLoss
         
     model = Model(
         net=net,
@@ -71,7 +57,7 @@ def load(weights_path, model, lr, dropout, loss_type, n_class, channels, epochs)
     )
 
     if weights_path != None:
-        model.load_state_dict(torch.load(weights_path))
+        model.load_state_dict(torch.load(weights_path, weights_only=True))
         # model.eval() # deactivate dropout layers https://discuss.pytorch.org/t/performance-highly-degraded-when-eval-is-activated-in-the-test-phase/3323
     return model
 

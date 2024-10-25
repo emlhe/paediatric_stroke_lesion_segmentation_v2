@@ -3,8 +3,16 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from functools import partial
-from monai.networks.nets import resnet10, FlexibleUNet
+from monai.networks.nets import resnet10
 import matplotlib.pyplot as plt 
+
+import warnings
+
+from collections.abc import Sequence
+
+from monai.networks.blocks.convolutions import Convolution, ResidualUnit
+from monai.networks.layers.factories import Act, Norm
+from monai.networks.layers.simplelayers import SkipConnection
 
 #####################
 #       SOURCE      #  
@@ -16,112 +24,13 @@ import matplotlib.pyplot as plt
 # https://github.com/ternaus/angiodysplasia-segmentation/blob/master/models.py
 
 
-############################
-#       RESNET (ENCODER)   #
-############################
-
-
-
-# class ResNet(nn.Module):
-
-#     def __init__(self,
-#                  block,
-#                  layers,
-#                  num_seg_classes):
-#         self.inplanes = 64
-#         super(ResNet, self).__init__()
-#         self.conv1 = nn.Conv3d(
-#             1,
-#             64,
-#             kernel_size=7,
-#             stride=(2, 2, 2),
-#             padding=(3, 3, 3),
-#             bias=False)
-            
-#         self.bn1 = nn.BatchNorm3d(64)
-#         self.relu = nn.ReLU(inplace=True)
-#         self.maxpool = nn.MaxPool3d(kernel_size=(3, 3, 3), stride=2, padding=1)
-#         self.layer1 = self._make_layer(block, 64, layers[0])
-#         self.layer2 = self._make_layer(
-#             block, 128, layers[1], stride=2)
-#         self.layer3 = self._make_layer(
-#             block, 256, layers[2], stride=2, dilation=2)
-#         self.layer4 = self._make_layer(
-#             block, 512, layers[3], stride=2, dilation=4)
-
-#         self.conv_seg = nn.Sequential(
-#                                         nn.ConvTranspose3d(
-#                                         512 * block.expansion,
-#                                         32,
-#                                         2,
-#                                         stride=2
-#                                         ),
-#                                         nn.BatchNorm3d(32),
-#                                         nn.ReLU(inplace=True),
-#                                         nn.Conv3d(
-#                                         32,
-#                                         32,
-#                                         kernel_size=3,
-#                                         stride=(1, 1, 1),
-#                                         padding=(1, 1, 1),
-#                                         bias=False), 
-#                                         nn.BatchNorm3d(32),
-#                                         nn.ReLU(inplace=True),
-#                                         nn.Conv3d(
-#                                         32,
-#                                         num_seg_classes,
-#                                         kernel_size=1,
-#                                         stride=(1, 1, 1),
-#                                         bias=False) 
-#                                         )
-
-#         for m in self.modules():
-#             if isinstance(m, nn.Conv3d):
-#                 m.weight = nn.init.kaiming_normal_(m.weight, mode='fan_out')
-#             elif isinstance(m, nn.BatchNorm3d):
-#                 m.weight.data.fill_(1)
-#                 m.bias.data.zero_()
-
-#     def _make_layer(self, block, planes, blocks, stride=1, dilation=1):
-#         downsample = None
-#         if stride != 1 or self.inplanes != planes * block.expansion:
-#             downsample = nn.Sequential(
-#                 nn.Conv3d(
-#                     self.inplanes,
-#                     planes * block.expansion,
-#                     kernel_size=1,
-#                     stride=stride,
-#                     bias=False), 
-#                 nn.BatchNorm3d(planes * block.expansion))
-
-#         layers = []
-#         layers.append(block(self.inplanes, planes, stride=stride, dilation=dilation, downsample=downsample))
-#         self.inplanes = planes * block.expansion
-#         for i in range(1, blocks):
-#             layers.append(block(self.inplanes, planes, dilation=dilation))
-
-#         return nn.Sequential(*layers)
-    
-#     def forward(self, x):
-#         x = self.conv1(x)
-#         x = self.bn1(x)
-#         x = self.relu(x)
-#         x = self.maxpool(x)
-#         x = self.layer1(x)
-#         x = self.layer2(x)
-#         x = self.layer3(x)
-#         x = self.layer4(x)
-#         x = self.conv_seg(x)
-
-#         return x
-
-#------------------------------------------------------------------------------#
-
 #####################
 #       UNET        #
 #####################
 
-# With resnet encoder 
+# With resnet encoder
+
+ 
 
 class ConvRelu(nn.Module):
     def __init__(self, in_: int, out: int):
@@ -227,32 +136,27 @@ class Res_UNet(nn.Module):
 
         self.pool = nn.MaxPool3d(2)
 
-        self.model = ResNet(
-                BasicBlock,
-                [1,1,1,1], # Pour 10 couches, [2,2,2,2] pour 18 couches, [3, 4, 6, 3] pour 34, [3, 4, 23, 3] pour 101 ... voir : https://github.com/Tencent/MedicalNet/blob/master/models/resnet.py
-                num_seg_classes=2)
+        # self.model = 
         
-        if pretrained :
-            # model = monai.networks.nets.ResNet('basic' , [2,2,2,2], [2,2,2,2], spatial_dims=3, n_input_channels=1 )
-            net_dict = self.model.state_dict() 
-            pretrain = torch.load("/home/emma/Projets/dl_brain_MRI_segmentation/models_weights/MedNet/resnet_10_23dataset.pth")           
-            pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
-            net_dict.update(pretrain_dict)
-            self.model.load_state_dict(net_dict)
-            self.model.eval()
+        # if pretrained :
+        #     # model = monai.networks.nets.ResNet('basic' , [2,2,2,2], [2,2,2,2], spatial_dims=3, n_input_channels=1 )
+        #     net_dict = self.model.state_dict() 
+        #     pretrain = torch.load("/home/emma/Projets/dl_brain_MRI_segmentation/models_weights/MedNet/resnet_10_23dataset.pth")           
+        #     pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
+        #     net_dict.update(pretrain_dict)
+        #     self.model.load_state_dict(net_dict)
+        #     self.model.eval()
             # fmodel = torch.jit.freeze(model) # On freeze le modèle pour ne pas entraîner les paramètres
             # for param in self.model.parameters():
             #     param.requires_grad = False
         
-        self.encoder = self.model
-
-        # self.encoder = torchvision.models.resnet34(pretrained=pretrained) # marche pas car 2D
+        self.encoder = resnet10(pretrained=True, n_input_channels=1, feed_forward=False, spatial_dims=3, bias_downsample=False)
 
         self.relu = nn.ReLU(inplace=True)
 
         self.conv1 = nn.Sequential(self.encoder.conv1,
                                    self.encoder.bn1,
-                                   self.encoder.relu,
+                                   self.encoder.act, # In monai v 1.3.2 instead of relu 
                                    self.pool)
 
         self.conv2 = self.encoder.layer1
@@ -263,12 +167,12 @@ class Res_UNet(nn.Module):
 
         self.conv5 = self.encoder.layer4
 
-        self.center = DecoderBlock(512, num_filters * 8 * 2, num_filters * 8, is_deconv)
+        self.center = DecoderBlock(256, num_filters * 8 * 2, num_filters * 8, is_deconv)#[4,8,16,32,64]
 
-        self.dec5 = DecoderBlock(512 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
-        self.dec4 = DecoderBlock(256 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
-        self.dec3 = DecoderBlock(128 + num_filters * 8, num_filters * 4 * 2, num_filters * 2, is_deconv)
-        self.dec2 = DecoderBlock(64 + num_filters * 2, num_filters * 2 * 2, num_filters * 2 * 2, is_deconv)
+        self.dec5 = DecoderBlock(256 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
+        self.dec4 = DecoderBlock(128 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
+        self.dec3 = DecoderBlock(64 + num_filters * 8, num_filters * 4 * 2, num_filters * 2, is_deconv)
+        self.dec2 = DecoderBlock(32 + num_filters * 2, num_filters * 2 * 2, num_filters * 2 * 2, is_deconv)
         self.dec1 = DecoderBlock(num_filters * 2 * 2, num_filters * 2 * 2, num_filters, is_deconv)
         self.dec0 = ConvRelu(num_filters, num_filters)
         self.final = nn.Conv3d(num_filters, num_classes, kernel_size=1)

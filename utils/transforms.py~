@@ -1,20 +1,19 @@
 import torchio as tio
 
-def preprocess(brain_mask=None, crop=None):
+def preprocess(num_classes):
     return tio.Compose([
+                tio.OneHot(num_classes=num_classes),
+                tio.ZNormalization(masking_method=tio.ZNormalization.mean),
                 tio.ToCanonical(), # "Reorder the data to be closest to canonical (RAS+) orientation."
                 tio.Resample('t1'), # Make sure all label maps have same affine as t1
                 tio.Resample(1),
-                tio.ZNormalization(masking_method=brain_mask),
-                tio.CropOrPad(crop, mask_name=brain_mask),
-                tio.OneHot(num_classes = 2),
-                # tio.EnsureShapeMultiple((32,32,32), method='pad'), # for the U-Net : doit être un multiple de 2**nombre de couches
+                tio.EnsureShapeMultiple((32,32,32)), # for the U-Net : doit être un multiple de 2**nombre de couches
                 ])
         
 def augment():
     return tio.Compose([
                 tio.OneOf({
-                    tio.RandomAffine(scales=(0.4,1.0),degrees=20, translation=(-10,10)): 0.8,
+                    tio.RandomAffine(scales=(0.6,1.1),degrees=20, translation=(-10,10)): 0.8,
                     tio.RandomElasticDeformation(num_control_points = 12, max_displacement = 8): 0.2,
                     },
                     p=0.75,

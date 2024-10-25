@@ -17,7 +17,5 @@
     "seed" : 42,
     "dropout" : 0.2,
     "loss_type" : "DiceCE",
-    "channels" : [8,16,32,64,128],
-    "overfit_batch": 0,
-    "ft_weights": false
+    "channels" : [4,8,16,32,64]
 }

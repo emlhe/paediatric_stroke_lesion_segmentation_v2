@@ -7,5 +7,5 @@
 *.csv
 out-predictions
 weights
-logs
-*log*
+unet_logs
+
